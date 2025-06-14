@@ -23,8 +23,8 @@ model Coffee {
   updatedAt   DateTime   @updatedAt
   
   // Relacionamentos incompleto
-  tags        
-  cartItems  // 
+  tags    CoffeeTag[]    
+  cartItems  CartItem[]
 }
 
 model Tag {
@@ -38,9 +38,12 @@ model Tag {
 }
 
 model CoffeeTag {
-  coffeeId  String
+  id String @id @default(uuid())
+  coffeeId  String 
   tagId     String
   // Relacionamentos aqui
+  coffee Coffee @relation(fields: [coffeeId],references: [id])
+  tag Tag @relation(fields: [tagId],references: [id])
 }
 
 model Cart {
@@ -61,4 +64,9 @@ model CartItem {
   updatedAt  DateTime @updatedAt
   
   // Relacionamentos aqui
+  cartId String
+  cart Cart @relation(fields: [cartId],references: [id])
+  coffeeId String
+  coffe Coffee @relation(fields: [coffeeId],references: [id])
+
 }

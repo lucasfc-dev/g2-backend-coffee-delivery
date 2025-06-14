@@ -11,5 +11,5 @@ export class Coffee implements PrismaCoffee {
   updatedAt: Date;
   
   // Campos adicionais não presentes no modelo Prisma
-  tags?: { id: string; name: string }[];
+  tags: { id: string; name: string }[];
 } 

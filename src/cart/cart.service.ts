@@ -59,12 +59,36 @@ export class CartService {
     if (!item) {
       throw new NotFoundException(`Item with ID ${itemId} not found in cart ${cartId}`);
     }
+    return this.prisma.cartItem.update({
+      where:{
+        id:itemId
+      },
+      data:{
+        quantity:updateItemDto.quantity
+      }
 
-    // continue com sua lógica ou refaça
+    })
+
+    
   }
 
   async removeItem(cartId: string, itemId: string) {
+    const item = await this.prisma.cartItem.findFirst({
+      where: {
+        id: itemId,
+        cartId,
+      },
+    });
 
+    if (!item) {
+      throw new NotFoundException(`Coffee with ID ${itemId} not found`);
+    }
+    await this.prisma.cartItem.delete({
+      where: {
+        id: itemId
+      },
+    });
+    
     return { success: true };
   }
 } 

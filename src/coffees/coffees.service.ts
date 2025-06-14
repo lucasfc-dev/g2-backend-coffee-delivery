@@ -2,12 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
+import { CoffeeResponseDto } from './dto/coffee-response.dto';
 
 @Injectable()
 export class CoffeesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
-  async findAll() {
+  async findAll(): Promise<CoffeeResponseDto[]> {
     const coffees = await this.prisma.coffee.findMany({
       include: {
         tags: {
@@ -24,7 +25,7 @@ export class CoffeesService {
     }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<CoffeeResponseDto> {
     const coffee = await this.prisma.coffee.findUnique({
       where: { id },
       include: {
@@ -47,18 +48,26 @@ export class CoffeesService {
   }
 
   async create(createCoffeeDto: CreateCoffeeDto) {
-    // código aqui
 
-    // return this.prisma.coffee.create({data: {}});
-  }
+    const coffee = createCoffeeDto
+    const tags = this.prisma.tag.findMany({
+      where: {
+        id: { in: coffee.tagIds }
+      }
+    })
 
-  async update(id: string, updateCoffeeDto: UpdateCoffeeDto) {
-    // código de implementação aqui
-
-    // Atualizar os dados do café
-    return this.prisma.coffee.update({
-      where: { id },
-      data: [], // seu dados atualziados iserir aqui
+    return this.prisma.coffee.create({
+      data: {
+        name: coffee.name,
+        description: coffee.description,
+        price: coffee.price,
+        imageUrl: coffee.imageUrl,
+        tags: {
+          create: coffee.tagIds.map((tagId) => ({
+            tag: { connect: { id: tagId } },
+          })),
+        },
+      },
       include: {
         tags: {
           include: {
@@ -68,12 +77,74 @@ export class CoffeesService {
       },
     });
   }
+  async update(id: string, updateCoffeeDto: UpdateCoffeeDto) {
+    // Verifica se o café existe
+    const coffeeExists = await this.prisma.coffee.findUnique({
+      where: { id },
+    });
+
+    if (!coffeeExists) {
+      throw new Error('Café não encontrado');
+    }
+
+    const updateData: any = {
+      name: updateCoffeeDto.name,
+      description: updateCoffeeDto.description,
+      price: updateCoffeeDto.price,
+      imageUrl: updateCoffeeDto.imageUrl,
+    };
+
+    if (updateCoffeeDto.tagIds?.length) {
+      const tags = await this.prisma.tag.findMany({
+        where: { id: { in: updateCoffeeDto.tagIds } },
+      });
+
+      if (tags.length !== updateCoffeeDto.tagIds.length) {
+        throw new Error('Uma ou mais tags fornecidas não existem');
+      }
+
+      await this.prisma.coffeeTag.deleteMany({
+        where: { coffeeId: id },
+      });
+
+      for (const tagId of updateCoffeeDto.tagIds) {
+        await this.prisma.coffeeTag.create({
+          data: {
+            coffeeId: id,
+            tagId,
+          },
+        });
+      }
+    }
+
+    return this.prisma.coffee.update({
+      where: { id },
+      data: updateData,
+      include: {
+        tags: { include: { tag: true } },
+      },
+    });
+  }
 
   async remove(id: string) {
-    //  1 - Verificar se o café existe
+    const coffee = await this.prisma.coffee.findUnique({
+      where: { id },
+    });
 
-    // 2 - Remover o café
+    if (!coffee) {
+      throw new Error('Café não encontrado');
+    }
+
+    await this.prisma.coffeeTag.deleteMany({
+      where: { coffeeId: id },
+    });
+
+    return this.prisma.coffee.delete({
+      where: { id },
+    });
   }
+
+
 
   async searchCoffees(params: {
     start_date?: Date;

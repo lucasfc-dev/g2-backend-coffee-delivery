@@ -1,8 +1,10 @@
+import { Decimal } from "@prisma/client/runtime/library";
+
 export class CoffeeResponseDto {
   id: string;
   name: string;
   description: string;
-  price: number;
+  price: Decimal;
   imageUrl: string;
   createdAt: Date;
   updatedAt: Date;
