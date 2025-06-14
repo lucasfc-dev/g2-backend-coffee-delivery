@@ -154,27 +154,73 @@ export class CoffeesService {
     limit?: number;
     offset?: number;
   }) {
-    const { start_date, end_date, name, tags, limit = 10, offset = 0 } = params;
+    const {
+      start_date,
+      end_date,
+      name,
+      tags,
+      limit = 10,
+      offset = 0,
+    } = params;
+  
+  
+    const filters: any = {};
+  
+ 
+    if (start_date && end_date) {
+      filters.createdAt = {
+        gte: start_date,
+        lte: end_date,
+      };
+    } else if (start_date) {
+      filters.createdAt = {
+        gte: start_date,
+      };
+    } else if (end_date) {
+      filters.createdAt = {
+        lte: end_date,
+      };
+    }
 
-    // Construir o filtro
-
-    // Filtro por data
-
-    // Filtro por nome
-
-    // Filtro por tags
-
-    // Buscar os cafés com paginação
-
-    // Formatar a resposta
+    if (name) {
+      filters.name = {
+        contains: name,
+        mode: 'insensitive', 
+      };
+    }
+  
+    if (tags && tags.length > 0) {
+      filters.tags = {
+        some: {
+          name: {
+            in: tags,
+          },
+        },
+      };
+    }
+  
+    const coffees = await this.prisma.coffee.findMany({
+      where: filters,
+      take: limit,
+      skip: offset,
+      include: {
+        tags: true, 
+      },
+    });
+  
+    const total = await this.prisma.coffee.count({
+      where: filters,
+    });
+  
     return {
-      data: [],
+      data: coffees,
       pagination: {
-        total: [],
+        total,
         limit,
         offset,
-        hasMore: offset,
+        hasMore: offset + limit < total,
       },
     };
   }
+  
 } 

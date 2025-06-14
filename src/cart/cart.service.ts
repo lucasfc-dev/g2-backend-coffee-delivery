@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, HttpException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddItemDto } from './dto/add-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
@@ -19,8 +19,8 @@ export class CartService {
         return existingCart;
       }
     }
-
     // Criar novo carrinho
+
     return this.prisma.cart.create({
       data: {
         userId: userId || null,
@@ -29,22 +29,53 @@ export class CartService {
   }
 
   async getCart(cartId: string) {
-    // implementar sua lógica aqui
+    return this.prisma.cart.findUnique({
+      where:{
+        id:cartId
+      }
+    })
   }
 
   async addItem(cartId: string, addItemDto: AddItemDto) {
     const { coffeeId, quantity } = addItemDto;
 
     // Verificar se o café existe
-    const coffee = await this.prisma.coffee.findUnique({
-      where: { id: coffeeId },
+    const cartItem = await this.prisma.cartItem.findUnique({
+      where: { id: cartId,coffeeId:coffeeId },
     });
 
-    if (!coffee) {
-      throw new NotFoundException(`Coffee with ID ${coffeeId} not found`);
+    if (cartItem) {
+      throw new NotFoundException(`Café com ID ${coffeeId} já está no carrinho`);
     }
 
-    // continue com sua lógica aqui!
+    const cartItems = this.prisma.cartItem.findMany({
+      where:{
+        cartId:cartId
+      }
+    })
+    if((await cartItems).length==5){
+      throw new HttpException('Limites de itens atingido',400)
+    }
+    
+    const coffee = await this.prisma.coffee.findUnique({
+      where:{
+        id:coffeeId
+      }
+    })
+    if(!coffee){
+      throw new HttpException('Café não existe',404)
+    }
+
+    const item = this.prisma.cartItem.create({
+      data:{
+        coffeeId:coffeeId,
+        quantity:quantity,
+        cartId:cartId,
+        unitPrice:coffee.price
+      }
+    })
+
+    return item
   }
 
   async updateItem(cartId: string, itemId: string, updateItemDto: UpdateItemDto) {
@@ -83,6 +114,16 @@ export class CartService {
     if (!item) {
       throw new NotFoundException(`Coffee with ID ${itemId} not found`);
     }
+
+    const cartItems = this.prisma.cartItem.findMany({
+      where:{
+        cartId:cartId
+      }
+    })
+    if((await cartItems).length==1){
+      throw new HttpException('Minimo de itens atingido',400)
+    }
+
     await this.prisma.cartItem.delete({
       where: {
         id: itemId
